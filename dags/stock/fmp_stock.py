@@ -7,7 +7,6 @@ import pandas as pd
 from airflow.decorators import dag, task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
-from airflow.hooks.filesystem import FSHook
 
 from utils.common_utils import get_task_date
 from integration.source.fmp import historical_price_full_of_stock
@@ -78,9 +77,10 @@ def fmp_stock():
 
     @task()
     def extract_history(file: str) -> pd.DataFrame:
+        from airflow.hooks.filesystem import FSHook
         fs_hook = FSHook()
         path = fs_hook.get_path()
-        return pd.read_csv(f"{path}/{file}")
+        return pd.read_csv(f"{path}/file/{file}")
 
     @task()
     def load_raw(json_data: json, table_name: str, **kwargs) -> int:
@@ -129,13 +129,13 @@ def fmp_stock():
             raise AirflowException(f"unkown error: {e}") from e
 
     @task()
-    def load(data, table_name: str, **kwargs) -> int:
+    def load(df: pd.DataFrame, table_name: str, **kwargs) -> int:
         params = kwargs["params"]
         env = params["env"]
 
         try:
-            if data is None:
-                raise TypeError("data is None")
+            if df is None:
+                raise TypeError("df is None")
 
             pg_destination = PGDestination(env)
             cols_mapping = {
@@ -144,7 +144,7 @@ def fmp_stock():
                 "changePercent": "change_percent",
                 "changeOverTime": "change_over_time",
             }
-            result = pg_destination.copy_write(data, table_name, "stock", cols_mapping)
+            result = pg_destination.copy_write(df, table_name, "stock", cols_mapping)
 
             return result
         except Exception as e:
