@@ -9,7 +9,7 @@ from airflow.providers.discord.notifications.discord import DiscordNotifier
 @dag(
     "demo_notifier",
     start_date=pendulum.today(),
-    schedule="@once",
+    schedule=None,
     catchup=False,
     tags=["demo"],
     on_success_callback=DiscordNotifier("discord_leaves", "Success!"),

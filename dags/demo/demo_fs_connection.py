@@ -7,7 +7,7 @@ from airflow.hooks.filesystem import FSHook
 @dag(
     "demo_fs_connection",
     start_date=pendulum.today(),
-    schedule="@once",
+    schedule=None,
     catchup=False,
     tags=["demo"]
 )

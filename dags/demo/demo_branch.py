@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 @dag(
     "demo_branch",
     start_date=pendulum.today(),
-    schedule="@once",
+    schedule=None,
+    catchup=False,
     tags=["demo"]
 )
 def demo_branch():

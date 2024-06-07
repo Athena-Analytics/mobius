@@ -9,7 +9,7 @@ from airflow.decorators import dag, task
 @dag(
     "demo_param",
     start_date=pendulum.today(),
-    schedule="@once",
+    schedule=None,
     catchup=False,
     tags=["demo"],
     params={

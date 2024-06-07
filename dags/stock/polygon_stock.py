@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
     },
     description="fetch stock data from polygon api",
     start_date=pendulum.datetime(2024, 1, 1),
-    schedule="0 0 * * 1",
+    schedule=None,
     catchup=False,
     tags=["stock"],
     params={

@@ -9,7 +9,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 @dag(
     "demo_postgres_connection",
     start_date=pendulum.today(),
-    schedule="@once",
+    schedule=None,
     catchup=False,
     tags=["demo"]
 )
