@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
     },
     description="build dim_date table",
     start_date=pendulum.today(),
-    schedule="@once",
+    schedule=None,
     catchup=False,
     tags=["dim"],
     params={
@@ -52,6 +52,7 @@ logger = logging.getLogger(__name__)
 def dim_date():
     """
     Build a dim table of date that has columns
+    - id
     - dt
     - date
     - year_num
@@ -73,6 +74,9 @@ def dim_date():
     - work_week_start
     - work_week_end
     - work_week_range
+    - frequency_of_month
+    - create_time
+    - update_time
     """
     def _get_year_properties(d: pendulum.datetime) -> dict:
         return dict(
@@ -138,16 +142,17 @@ def dim_date():
         import calendar
         cal = calendar.Calendar()
         month_days = list(cal.itermonthdays4(dt.year, dt.month))
+
         lst = []
         for i in range(0, 7):
-            some_month_days = filter(lambda x: x[1] == dt.month and x[3] == i, month_days)
-            some_week_day = [pendulum.date(i[0], i[1], i[2]).to_date_string() for i in some_month_days]
+            some_month_days = [month_days[i + j * 7] for j in range(len(month_days) // 7)]
+            some_week_day = [pendulum.date(k[0], k[1], k[2]).to_date_string() for k in some_month_days if k[1] == dt.month]
             df = pd.DataFrame(some_week_day, columns=["dt"]).reset_index()
             df["frequency_of_month"] = df["index"] + 1
             lst.append(df)
         result = pd.concat(lst)
         return result
-    
+
     @task.branch()
     def branch_sync(**kwargs) -> str:
         params = kwargs["params"]
@@ -201,7 +206,7 @@ def dim_date():
             return result
         except Exception as e:
             raise AirflowException(f"unkown error: {e}") from e
-    
+
     branch_sync_op = branch_sync()
 
     @task_group()
@@ -213,7 +218,7 @@ def dim_date():
     def historic_task_group():
         historic_df = extract_history("dim_date.csv")
         load(historic_df, "dim_date")
-    
+
     current_task = current_task_group()
     historic_task = historic_task_group()
 
@@ -224,4 +229,5 @@ dag_object = dim_date()
 
 
 if __name__ == "__main__":
-    dag_object.test(run_conf={"env": "dev", "sync_mode": "Incremental Append", "start": "2999-01-01", "end": "2999-01-01"})
+    conf = {"env": "dev", "sync_mode": "Full Refresh Append", "start": "2999-01-01", "end": "2999-01-01"}
+    dag_object.test(run_conf=conf)
