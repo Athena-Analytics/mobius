@@ -7,12 +7,20 @@ import pandas as pd
 from airflow.decorators import dag, task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
+from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
 
+from stock.slack_blocks import dag_failure_slack_blocks
 from utils.common_utils import get_task_date
 from integration.source.fmp import historical_price_full_of_stock
 from integration.destination.postgres import PGDestination
 
 logger = logging.getLogger(__name__)
+
+dag_failure_slack_webhook_notification = SlackWebhookNotifier(
+    slack_webhook_conn_id="slack_webhook_mobius",
+    text="The dag {{ dag.dag_id }} failed",
+    blocks=dag_failure_slack_blocks
+)
 
 
 @dag(
@@ -38,7 +46,8 @@ logger = logging.getLogger(__name__)
             title="Select on Value.",
             enum=["Incremental Append", "Full Refresh Append"]
         )
-    }
+    },
+    on_failure_callback=[dag_failure_slack_webhook_notification]
 )
 def fmp_stock():
     """
@@ -100,7 +109,7 @@ def fmp_stock():
             else:
                 raise ValueError(f"table_name must start with _raw, but got {table_name}")
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     @task()
     def extract(from_date: str, to_date: str) -> json:
@@ -126,7 +135,7 @@ def fmp_stock():
 
             return df
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     @task()
     def load(df: pd.DataFrame, table_name: str, **kwargs) -> int:
@@ -148,7 +157,7 @@ def fmp_stock():
 
             return result
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     branch_sync_op = branch_sync()
 
