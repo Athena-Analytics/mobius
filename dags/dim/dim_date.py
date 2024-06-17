@@ -205,7 +205,7 @@ def dim_date():
 
             return result
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     branch_sync_op = branch_sync()
 

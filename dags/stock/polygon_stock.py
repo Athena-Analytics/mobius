@@ -86,7 +86,7 @@ def polygon_stock():
             df["t"] = df["t"].apply(lambda x: pendulum.parse(x).int_timestamp * 1000)
             return df
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     @task()
     def load_raw(json_data: json, table_name: str, **kwargs) -> int:
@@ -109,7 +109,7 @@ def polygon_stock():
             else:
                 raise ValueError(f"table_name must have _raw, but got {table_name}")
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     @task()
     def extract(from_date: str, to_date: str) -> json:
@@ -135,7 +135,7 @@ def polygon_stock():
 
             return df
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     @task()
     def load(data, table_name: str, **kwargs) -> int:
@@ -151,7 +151,7 @@ def polygon_stock():
 
             return result
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     branch_sync_op = branch_sync()
 
