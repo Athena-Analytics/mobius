@@ -1,0 +1,32 @@
+{
+  "fs_default": {
+    "conn_type": "fs",
+    "description": "",
+    "login": "",
+    "password": null,
+    "host": "",
+    "port": null,
+    "schema": "",
+    "extra": "{\"path\": \"/root\"}"
+  },
+  "pg_prod": {
+    "conn_type": "",
+    "description": "",
+    "login": "",
+    "password": "",
+    "host": "",
+    "port": 5432,
+    "schema": "",
+    "extra": "{\"client_encoding\": \"UTF8\"}"
+  },
+  "pg_test": {
+    "conn_type": "",
+    "description": "",
+    "login": "",
+    "password": "",
+    "host": "",
+    "port": 5432,
+    "schema": "test",
+    "extra": "{\"client_encoding\": \"UTF8\"}"
+  }
+}
