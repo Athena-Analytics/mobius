@@ -32,8 +32,8 @@ def historical_price_full_of_stock(stocks_ticker: str,
         logger.info("stop fetching data from the %s", url)
 
         if r.status_code == 200:
-            if historical_price_full["historical"] == 0:
-                raise ValueError("stock data is empty, please check if date in params is vaild trading date")
+            if len(historical_price_full) == 0:
+                raise ValueError("stock data is empty, please check if date in params is valid trading date")
             return r.json()
         else:
             raise requests.RequestException(f"request fail, status code is {r.status_code}, response is {r.json()}")
