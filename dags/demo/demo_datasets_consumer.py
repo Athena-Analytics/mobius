@@ -3,13 +3,14 @@ import pendulum
 from airflow.datasets import Dataset
 from airflow.decorators import dag, task
 
-INSTRUCTIONS = Dataset("file://home/leaf/mobius/include/cocktail_instructions.txt")
+INSTRUCTIONS = Dataset("file://localhost/airflow/include/cocktail_instructions.txt")
+INFO = Dataset("file://localhost/airflow/include/cocktail_info.txt")
 
 
 @dag(
     "demo_datasets_consumer",
     start_date=pendulum.today(),
-    schedule=[INSTRUCTIONS],
+    schedule=[INSTRUCTIONS, INFO],
     catchup=False,
     tags=["demo"]
 )
