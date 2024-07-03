@@ -1,4 +1,4 @@
-"""Module is basement for Destination"""
+"""Module is basement for Destination."""
 import logging
 from abc import ABC, abstractmethod
 
@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class BaseDestination(ABC):
     """
-    Define some abstact methods that have
+    Define some abstract methods that have
     [
         write
         copy_write

@@ -12,7 +12,9 @@ def aggregates_bars_of_stock(stocks_ticker: str,
                              timespan: str,
                              from_date: str,
                              to_date: str) -> json:
-    """Fetch Stock Data from Polygon."""
+    """
+    Fetch Stock Data from Polygon
+    """
     try:
         import requests
 
@@ -36,7 +38,7 @@ def aggregates_bars_of_stock(stocks_ticker: str,
 
         if r.status_code == 200:
             if aggregates_bars["resultsCount"] == 0:
-                raise ValueError("stock data is empty, please check if date in params is vaild trading date")
+                raise ValueError("stock data is empty, please check if date in params is valid trading date")
             return r.json()
         else:
             raise requests.RequestException(f"request fail, status code is {r.status_code}, response is {r.json()}")

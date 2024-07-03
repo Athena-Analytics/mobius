@@ -28,7 +28,7 @@ dag_failure_slack_webhook_notification = SlackWebhookNotifier(
     default_args={
         "depends_on_past": True
     },
-    description="fetch stock data from fmp api",
+    description="fetch stock data from fmp api.",
     start_date=pendulum.datetime(2024, 1, 1),
     schedule="0 0 * * 1",
     catchup=False,

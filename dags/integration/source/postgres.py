@@ -25,6 +25,9 @@ class PGSource(BaseSource):
             raise ValueError(f"env must be dev or prod, but got {env}")
 
     def exist(self, table_name: str, table_schema: str = None) -> bool:
+        """
+        Define if a table exists in PostgreSQL
+        """
         if table_schema is None:
             stmt = f"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = {table_name}"
         else:
@@ -38,6 +41,9 @@ class PGSource(BaseSource):
             return False
 
     def read(self, sql: str, **kwargs) -> DataFrame:
+        """
+        Define how to fetch data from PostgreSQL using SQL
+        """
         try:
             from pandas.io import sql as psql
             engine = self.pg_hook.get_sqlalchemy_engine()

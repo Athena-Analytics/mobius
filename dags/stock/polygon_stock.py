@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
     default_args={
         "depends_on_past": False
     },
-    description="fetch stock data from polygon api",
+    description="fetch stock data from polygon api.",
     start_date=pendulum.datetime(2024, 1, 1),
     schedule=None,
     catchup=False,

@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 def historical_price_full_of_stock(stocks_ticker: str,
                                    from_date: str,
                                    to_date: str) -> json:
-    """Fetch Stock Data from FMP."""
+    """
+    Fetch Stock Data from FMP
+    """
     try:
         import requests
 

@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class BaseSource(ABC):
     """
-    Define some abstact methods that have
+    Define some abstract methods that have
     [
         read
         exist
