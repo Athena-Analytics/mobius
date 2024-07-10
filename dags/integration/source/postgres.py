@@ -18,9 +18,9 @@ class PGSource(BaseSource):
         logger.info("current env of postgresql is %s", env)
 
         if env == "dev":
-            self.pg_hook = PostgresHook(postgres_conn_id="pg_test")
+            self._pg_hook = PostgresHook(postgres_conn_id="pg_test")
         elif env == "prod":
-            self.pg_hook = PostgresHook(postgres_conn_id="pg_prod")
+            self._pg_hook = PostgresHook(postgres_conn_id="pg_prod")
         else:
             raise ValueError(f"env must be dev or prod, but got {env}")
 
@@ -46,7 +46,7 @@ class PGSource(BaseSource):
         """
         try:
             from pandas.io import sql as psql
-            engine = self.pg_hook.get_sqlalchemy_engine()
+            engine = self._pg_hook.get_sqlalchemy_engine()
             return psql.read_sql(sql, con=engine, **kwargs)
         except Exception as e:
             raise e

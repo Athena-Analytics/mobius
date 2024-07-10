@@ -20,9 +20,9 @@ class PGDestination(BaseDestination):
         logger.info("current env of postgresql is %s", env)
 
         if env == "dev":
-            self.pg_hook = PostgresHook(postgres_conn_id="pg_test")
+            self._pg_hook = PostgresHook(postgres_conn_id="pg_test")
         elif env == "prod":
-            self.pg_hook = PostgresHook(postgres_conn_id="pg_prod")
+            self._pg_hook = PostgresHook(postgres_conn_id="pg_prod")
         else:
             raise ValueError(f"env must be dev or prod, but got {env}")
 
@@ -49,7 +49,7 @@ class PGDestination(BaseDestination):
             table_columns = ",".join(df.columns)
             sql_statement = f"INSERT INTO {table_schema}.{table_name} ({table_columns}) VALUES %s RETURNING id;"
 
-            with closing(self.pg_hook.get_conn()) as conn, closing(conn.cursor()) as cur:
+            with closing(self._pg_hook.get_conn()) as conn, closing(conn.cursor()) as cur:
                 execute_values(cur, sql_statement, df.values.tolist())
                 result = cur.fetchone()[0]
                 conn.commit()
@@ -75,7 +75,7 @@ class PGDestination(BaseDestination):
                 logger.info("name of tempfile is %s", temp_file_name)
 
                 df.to_csv(temp_file_name, index=False)
-                self.pg_hook.copy_expert(sql_statement, temp_file_name)
+                self._pg_hook.copy_expert(sql_statement, temp_file_name)
 
             return 1
         except AirflowException as e:
