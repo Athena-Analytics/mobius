@@ -12,6 +12,7 @@ from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNoti
 from stock.slack_blocks import dag_failure_slack_blocks
 from utils.common_utils import get_task_date
 from integration.source.fmp import historical_price_full_of_stock
+from integration.source.file import FileSource
 from integration.destination.postgres import PGDestination
 
 logger = logging.getLogger(__name__)
@@ -29,9 +30,9 @@ dag_failure_slack_webhook_notification = SlackWebhookNotifier(
         "depends_on_past": True
     },
     description="fetch stock data from fmp api.",
-    start_date=pendulum.datetime(2024, 1, 1),
+    start_date=pendulum.datetime(2024, 7, 1),
     schedule="0 0 * * 1",
-    catchup=False,
+    catchup=True,
     tags=["stock"],
     params={
         "env": Param(
@@ -85,11 +86,9 @@ def fmp_stock():
             raise AirflowException("sync_mode only support Incremental Append and Full Refresh Append")
 
     @task()
-    def extract_history(file: str) -> pd.DataFrame:
-        from airflow.hooks.filesystem import FSHook
-        fs_hook = FSHook()
-        path = fs_hook.get_path()
-        return pd.read_csv(f"{path}/file/{file}")
+    def extract_history(file_name: str) -> pd.DataFrame:
+        file_source = FileSource()
+        return file_source.read_csv(file_name, "file")
 
     @task()
     def load_raw(json_data: json, table_name: str, **kwargs) -> int:
@@ -184,4 +183,5 @@ dag_object = fmp_stock()
 
 
 if __name__ == "__main__":
-    dag_object.test()
+    conf = {"env": "dev", "sync_mode": "Full Refresh Append"}
+    dag_object.test(run_conf=conf)
