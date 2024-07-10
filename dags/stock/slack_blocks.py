@@ -4,7 +4,7 @@ dag_failure_slack_blocks = [
         "type": "header",
         "text": {
             "type": "plain_text",
-            "text": "*Dag Id:*\n{{ dag.dag_id }}",
+            "text": "Dag Id: {{ dag.dag_id }}",
             "emoji": True
         }
     },
@@ -17,32 +17,11 @@ dag_failure_slack_blocks = [
             },
             {
                 "type": "mrkdwn",
-                "text": "*When:*\n{{ ds }}"
-            }
-        ]
-    }
-]
-
-
-task_failure_slack_blocks = [
-    {
-        "type": "header",
-        "text": {
-            "type": "plain_text",
-            "text": "*Task Id:*\n{{ ti.task_id }}",
-            "emoji": True
-        }
-    },
-    {
-        "type": "section",
-        "fields": [
-            {
-                "type": "mrkdwn",
-                "text": "*Tag:*\n{{ dag.tags }}"
+                "text": "*RunType:*\n{{ dag_run.run_type }}"
             },
             {
                 "type": "mrkdwn",
-                "text": "*When:*\n{{ ds }}"
+                "text": "*RunId:*\n{{ dag_run.run_id }}"
             }
         ]
     }
