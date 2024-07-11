@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class PGDestination(BaseDestination):
     """
-    Define some methods that write data to PostgreSQL
+    Define how to write data into PostgreSQL
     """
     def __init__(self, env: str):
 
@@ -39,7 +39,7 @@ class PGDestination(BaseDestination):
 
     def write(self, df: DataFrame, table_name: str, table_schema: str = None, cols_mapping: dict = None) -> int:
         """
-        Define how to insert data into PostgreSQL
+        Insert data using INSERT command
         """
         from contextlib import closing
         from psycopg2.extras import execute_values
@@ -61,7 +61,7 @@ class PGDestination(BaseDestination):
 
     def copy_write(self, df: DataFrame, table_name: str, table_schema: str = None, cols_mapping: dict = None) -> int:
         """
-        Define how to use COPY command to insert data into PostgreSQL
+        Insert data using COPY command
         """
         import tempfile
 

@@ -16,4 +16,4 @@ class BaseSource(ABC):
 
     @abstractmethod
     def exist(self, *args, **kwargs):
-        """Implement to define how the connector check if table exists"""
+        """Implement to define how the connector check if a table exists"""

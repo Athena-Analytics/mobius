@@ -1,7 +1,9 @@
 """Module is Source of Local File System."""
+import os
 import logging
 
 import pandas as pd
+from airflow.hooks.filesystem import FSHook
 
 from integration.source.base import BaseSource
 
@@ -13,7 +15,6 @@ class FileSource(BaseSource):
     Define how to read data from local system
     """
     def __init__(self):
-        from airflow.hooks.filesystem import FSHook
         fs_hook = FSHook()
         self._path = fs_hook.get_path()
         logger.info("current path is %s", self._path)
@@ -23,7 +24,6 @@ class FileSource(BaseSource):
         """
         Check if the extension of file is valid
         """
-        import os
         file_ext = os.path.splitext(file_name)[1]
         logger.info("file_ext is %s", file_ext)
         return file_ext in ext
@@ -41,14 +41,13 @@ class FileSource(BaseSource):
 
     def exist(self, file_name: str, sub_path: str|None = None) -> bool:
         """
-        Define if file e exists in local file system
+        Check if a file exists
         """
-        import os
         return os.path.exists(self._combine_path_and_file(file_name, sub_path))
 
     def read(self, file_name: str, sub_path: str|None = None):
         """
-        Define how to fetch data from local file using contextlib
+        Fetch data using contextlib
         """
         try:
             with open(self._combine_path_and_file(file_name, sub_path), "rb") as f:
@@ -59,7 +58,7 @@ class FileSource(BaseSource):
 
     def read_csv(self, file_name: str, sub_path: str|None = None) -> pd.DataFrame:
         """
-        Define how to fetch data from local csv file using read_csv
+        Fetch data using read_csv
         """
         try:
             if not self.exist(file_name, "file"):
@@ -74,7 +73,7 @@ class FileSource(BaseSource):
 
     def read_json(self, file_name: str, sub_path: str|None = None) -> pd.DataFrame:
         """
-        Define how to fetch data from local csv file using read_csv
+        Fetch data using read_json
         """
         try:
             if not self.exist(file_name, "file"):

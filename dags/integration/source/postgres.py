@@ -26,7 +26,7 @@ class PGSource(BaseSource):
 
     def exist(self, table_name: str, table_schema: str = None) -> bool:
         """
-        Define if a table exists in PostgreSQL
+        Check if a table exists
         """
         if table_schema is None:
             stmt = f"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = {table_name}"
@@ -42,7 +42,7 @@ class PGSource(BaseSource):
 
     def read(self, sql: str, **kwargs) -> DataFrame:
         """
-        Define how to fetch data from PostgreSQL using SQL
+        Fetch data using SQL
         """
         try:
             from pandas.io import sql as psql
