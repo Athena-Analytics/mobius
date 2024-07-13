@@ -2,7 +2,6 @@
 import pendulum
 import pandas as pd
 from airflow.decorators import dag, task, setup
-from airflow.hooks.filesystem import FSHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
@@ -27,14 +26,13 @@ def demo_postgres_connection():
         return df
 
     @task()
-    def extract_history(path: str, file: str) -> pd.DataFrame:
-        df = pd.read_csv(f"{path}/file/{file}")
-        if "t" in df.columns.tolist():
-            df["t"] = df["t"].apply(lambda x: pendulum.parse(x).int_timestamp * 1000)
-        return df
+    def extract_history(file_name: str) -> pd.DataFrame:
+        from integration.source.file import FileSource
+        file_source = FileSource()
+        return file_source.read_csv(file_name, "file")
 
     @task()
-    def insert_to_postgres(pg_hook: PostgresHook, df: pd.DataFrame, table_schema: str, table_name: str):
+    def write_using_insert(pg_hook: PostgresHook, df: pd.DataFrame, table_schema: str, table_name: str):
 
         from contextlib import closing
         from psycopg2.extras import execute_values
@@ -51,7 +49,7 @@ def demo_postgres_connection():
         return result
 
     @task()
-    def save_to_postgres(pg_hook: PostgresHook, df: pd.DataFrame, table_schema: str, table_name: str):
+    def write_using_copy(pg_hook: PostgresHook, df: pd.DataFrame, table_schema: str, table_name: str):
 
         import tempfile
 
@@ -72,11 +70,17 @@ def demo_postgres_connection():
             pg_hook.copy_expert(sql_statement, temp_file.name)
 
     @task()
-    def read_from_postgres(pg_hook: PostgresHook, sql: str) -> pd.DataFrame:
-        from pandas.io import sql as psql
+    def read_using_sql(pg_hook: PostgresHook, sql: str, sql_params: dict | None = None) -> pd.DataFrame:
         engine = pg_hook.get_sqlalchemy_engine()
-        df = psql.read_sql(sql, con=engine)
-        return df
+        return pd.read_sql(sql, con=engine, params=sql_params)
+
+    @task()
+    def read_using_sql_file(pg_hook: PostgresHook, sql: str, sql_params: dict | None = None) -> pd.DataFrame:
+        if sql.endswith(".sql"):
+            with open(sql, "r", encoding="utf-8") as file:
+                sql = file.read()
+        engine = pg_hook.get_sqlalchemy_engine()
+        return pd.read_sql(sql, con=engine, params=sql_params)
 
     @setup
     def truncate_table(pg_hook: PostgresHook, table_schema: str, table_name: str) -> str:
@@ -90,21 +94,20 @@ def demo_postgres_connection():
         return "truncate success"
 
     pg_hook = PostgresHook(postgres_conn_id="pg_test")
-    fs_hook = FSHook()
-    path = fs_hook.get_path()
-    table_name = "fmp_stock_aggregates_bars"
+    table_name = "fmp_stock_price"
     raw_table_name = f"_raw_{table_name}"
 
     # test read
-    read_from_postgres(pg_hook, "SELECT * FROM dim.dim_date")
+    read_using_sql(pg_hook, "SELECT * FROM dim.dim_date WHERE dt = %(dt)s", {"dt": "2024-01-01"})
+    read_using_sql_file(pg_hook, "/opt/airflow/include/sql/test.sql", {"symbol": "TQQQ", "week_start": "2024-01-01"})
 
     # test insert
     raw_df = pd.DataFrame.from_dict({"metadata": ['{"a": 1, "b": "2"}']})
-    insert_to_postgres(pg_hook, raw_df, "stock", raw_table_name)
+    write_using_insert(pg_hook, raw_df, "stock", raw_table_name)
 
     # test copy
-    historic_df = extract_history(path, "fmp_tqqq_historic_data.csv")
-    truncate_table(pg_hook, "stock", table_name) >> save_to_postgres(pg_hook, historic_df, "stock", table_name)
+    historic_df = extract_history("fmp_historic_data.csv")
+    truncate_table(pg_hook, "stock", table_name) >> write_using_copy(pg_hook, historic_df, "stock", table_name)
 
 
 dag_object = demo_postgres_connection()
