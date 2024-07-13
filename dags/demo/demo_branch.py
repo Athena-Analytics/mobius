@@ -6,8 +6,6 @@ import pendulum
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
 
-from utils.common_utils import get_task_date
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,8 +33,6 @@ def demo_branch():
         else:
             return "t2"
 
-    task_date_op = get_task_date()
-
     branch_op = branch_task()
 
     t1_command = textwrap.dedent(
@@ -56,7 +52,7 @@ def demo_branch():
     )
     t2 = BashOperator(task_id="t2", bash_command=t2_command)
 
-    task_date_op >> branch_op >> [t1, t2]
+    branch_op >> [t1, t2]
 
 
 dag_object = demo_branch()

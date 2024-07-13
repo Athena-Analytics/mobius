@@ -1,6 +1,4 @@
 """These are some common task."""
-from datetime import timedelta
-
 from airflow.decorators import task
 
 
@@ -9,8 +7,10 @@ def get_task_date(reduce_days_for_start: int = 0,
                   reduce_days_for_end: int = 0,
                   **kwargs) -> dict[str, str]:
     """
-    Get date of scheduler while task is runing
+    Get date of scheduler while task is running
     """
+    from datetime import timedelta
+
     start_date = kwargs["data_interval_start"] - timedelta(days=reduce_days_for_start)
     end_date = kwargs["data_interval_end"] - timedelta(days=reduce_days_for_end)
 

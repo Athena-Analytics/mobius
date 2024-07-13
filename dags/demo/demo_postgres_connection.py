@@ -41,10 +41,10 @@ def demo_postgres_connection():
 
         df = _fix_columns(df, None)
         table_columns = ",".join(df.columns)
-        sql_statment = f"INSERT INTO {table_schema}.{table_name} ({table_columns}) VALUES %s RETURNING id;"
+        sql_statement = f"INSERT INTO {table_schema}.{table_name} ({table_columns}) VALUES %s RETURNING id;"
 
         with closing(pg_hook.get_conn()) as conn, closing(conn.cursor()) as cur:
-            execute_values(cur, sql_statment, df.values.tolist())
+            execute_values(cur, sql_statement, df.values.tolist())
             result = cur.fetchone()[0]
             conn.commit()
 
@@ -79,13 +79,13 @@ def demo_postgres_connection():
         return df
 
     @setup
-    def truncate_table(pg_hook: PostgresHook, table_schema: str, table_name: str):
+    def truncate_table(pg_hook: PostgresHook, table_schema: str, table_name: str) -> str:
         from contextlib import closing
 
-        sql_statment = f"TRUNCATE TABLE {table_schema}.{table_name};"
+        sql_statement = f"TRUNCATE TABLE {table_schema}.{table_name};"
 
         with closing(pg_hook.get_conn()) as conn, closing(conn.cursor()) as cur:
-            cur.execute(sql_statment)
+            cur.execute(sql_statement)
             conn.commit()
         return "truncate success"
 

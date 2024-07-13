@@ -163,7 +163,7 @@ def dim_date():
         elif sync_mode == "Full Refresh Append":
             return "historic_task_group.extract_history"
         else:
-            raise AirflowException("sync_mode only support Incremental Append and Full Refresh Append.")
+            raise AirflowException("sync_mode only support Incremental Append and Full Refresh Append")
 
     @task()
     def extract_history(file: str) -> pd.DataFrame:
@@ -205,7 +205,7 @@ def dim_date():
 
             return result
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     branch_sync_op = branch_sync()
 

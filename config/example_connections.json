@@ -1,4 +1,14 @@
 {
+  "discord_webhook_airflow": {
+    "conn_type": "discord",
+    "description": "",
+    "login": "",
+    "password": null,
+    "host": "https://discord.com/api/",
+    "port": null,
+    "schema": "",
+    "extra": "{\"webhook_endpoint\": \"webhooks/***/***\"}"
+  },
   "fs_default": {
     "conn_type": "fs",
     "description": "",
@@ -28,5 +38,15 @@
     "port": 5432,
     "schema": "test",
     "extra": "{\"client_encoding\": \"UTF8\"}"
+  },
+  "slack_webhook_mobius": {
+    "conn_type": "slackwebhook",
+    "description": "",
+    "login": "",
+    "password": "***/***/***",
+    "host": "hooks.slack.com/services",
+    "port": null,
+    "schema": "https",
+    "extra": "{\"timeout\": 30}"
   }
 }

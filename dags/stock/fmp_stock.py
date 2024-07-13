@@ -7,12 +7,21 @@ import pandas as pd
 from airflow.decorators import dag, task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
+from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
 
+from stock.slack_blocks import dag_failure_slack_blocks
 from utils.common_utils import get_task_date
 from integration.source.fmp import historical_price_full_of_stock
+from integration.source.file import FileSource
 from integration.destination.postgres import PGDestination
 
 logger = logging.getLogger(__name__)
+
+dag_failure_slack_webhook_notification = SlackWebhookNotifier(
+    slack_webhook_conn_id="slack_webhook_mobius",
+    text="The dag {{ dag.dag_id }} failed",
+    blocks=dag_failure_slack_blocks
+)
 
 
 @dag(
@@ -20,10 +29,10 @@ logger = logging.getLogger(__name__)
     default_args={
         "depends_on_past": True
     },
-    description="fetch stock data from fmp api",
-    start_date=pendulum.datetime(2024, 1, 1),
+    description="fetch stock data from fmp api.",
+    start_date=pendulum.datetime(2024, 7, 1),
     schedule="0 0 * * 1",
-    catchup=False,
+    catchup=True,
     tags=["stock"],
     params={
         "env": Param(
@@ -38,7 +47,8 @@ logger = logging.getLogger(__name__)
             title="Select on Value.",
             enum=["Incremental Append", "Full Refresh Append"]
         )
-    }
+    },
+    on_failure_callback=[dag_failure_slack_webhook_notification]
 )
 def fmp_stock():
     """
@@ -73,14 +83,12 @@ def fmp_stock():
         elif sync_mode == "Full Refresh Append":
             return "historic_task_group.extract_history"
         else:
-            raise AirflowException("sync_mode only support Incremental Append and Full Refresh Append.")
+            raise AirflowException("sync_mode only support Incremental Append and Full Refresh Append")
 
     @task()
-    def extract_history(file: str) -> pd.DataFrame:
-        from airflow.hooks.filesystem import FSHook
-        fs_hook = FSHook()
-        path = fs_hook.get_path()
-        return pd.read_csv(f"{path}/file/{file}")
+    def extract_history(file_name: str) -> pd.DataFrame:
+        file_source = FileSource()
+        return file_source.read_csv(file_name, "file")
 
     @task()
     def load_raw(json_data: json, table_name: str, **kwargs) -> int:
@@ -100,7 +108,7 @@ def fmp_stock():
             else:
                 raise ValueError(f"table_name must start with _raw, but got {table_name}")
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     @task()
     def extract(from_date: str, to_date: str) -> json:
@@ -126,7 +134,7 @@ def fmp_stock():
 
             return df
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     @task()
     def load(df: pd.DataFrame, table_name: str, **kwargs) -> int:
@@ -148,7 +156,7 @@ def fmp_stock():
 
             return result
         except Exception as e:
-            raise AirflowException(f"unkown error: {e}") from e
+            raise AirflowException(f"unknown error: {e}") from e
 
     branch_sync_op = branch_sync()
 
@@ -175,4 +183,5 @@ dag_object = fmp_stock()
 
 
 if __name__ == "__main__":
-    dag_object.test()
+    conf = {"env": "dev", "sync_mode": "Full Refresh Append"}
+    dag_object.test(run_conf=conf)

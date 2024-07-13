@@ -1,4 +1,4 @@
-version: "3.8"
+name: airflow
 
 networks:
   default:
@@ -8,11 +8,15 @@ networks:
           ip_range: 172.30.0.0/24
           gateway: 172.30.0.1
 
-x-airflow-common-build: &common-build
-  context: .
-  dockerfile: Dockerfile
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  env_file:
+    - path: docker/airflow.env
+      required: true
 
-x-airflow-common-volumes: &common-volumes
+x-airflow-volumes: &airflow-volumes
   - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
   - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
   - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
@@ -20,18 +24,13 @@ x-airflow-common-volumes: &common-volumes
   - ${AIRFLOW_PROJ_DIR:-.}/include:/opt/airflow/include
 
 services:
-
   webserver:
-    env_file:
-      - path: docker/airflow.env
-        required: true
-    build:
-      <<: *common-build
+    <<: *airflow-common
     container_name: airflow_webserver
-    command: webserver
     user: "${AIRFLOW_UID:-50000}:0"
+    command: webserver
     ports:
-      - "12345:8080"
+      - 1234:8080
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -39,20 +38,16 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    volumes: *common-volumes
+    volumes: *airflow-volumes
     depends_on:
       init:
         condition: service_completed_successfully
 
   scheduler:
-    env_file:
-      - path: docker/airflow.env
-        required: true
-    build:
-      <<: *common-build
+    <<: *airflow-common
     container_name: airflow_scheduler
-    command: scheduler
     user: "${AIRFLOW_UID:-50000}:0"
+    command: scheduler
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
       interval: 30s
@@ -60,7 +55,7 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    volumes: *common-volumes
+    volumes: *airflow-volumes
     depends_on:
       webserver:
         condition: service_healthy
@@ -68,16 +63,15 @@ services:
         condition: service_completed_successfully
 
   worker:
-    env_file:
-      - path: docker/airflow.env
-        required: true
-    build:
-      <<: *common-build
+    <<: *airflow-common
     container_name: airflow_worker
-    command: celery worker
+    environment:
+      # Required to handle warm shutdown of the celery workers properly
+      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+      DUMB_INIT_SETSID: "0"
     user: "${AIRFLOW_UID:-50000}:0"
+    command: celery worker
     healthcheck:
-      # yamllint disable rule:line-length
       test:
         - "CMD-SHELL"
         - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
@@ -85,12 +79,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    environment:
-      # Required to handle warm shutdown of the celery workers properly
-      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
-      DUMB_INIT_SETSID: "0"
     restart: always
-    volumes: *common-volumes
+    volumes: *airflow-volumes
     depends_on:
       scheduler:
         condition: service_healthy
@@ -98,16 +88,12 @@ services:
         condition: service_completed_successfully
 
   triggerer:
-    env_file:
-      - path: docker/airflow.env
-        required: true
-    build:
-      <<: *common-build
+    <<: *airflow-common
     container_name: airflow_triggerer
-    command: triggerer
-    user: "${AIRFLOW_UID:-50000}:0"
     profiles:
       - triggerer
+    user: "${AIRFLOW_UID:-50000}:0"
+    command: triggerer
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
       interval: 30s
@@ -115,7 +101,7 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    volumes: *common-volumes
+    volumes: *airflow-volumes
     depends_on:
       scheduler:
         condition: service_healthy
@@ -123,14 +109,20 @@ services:
         condition: service_completed_successfully
 
   init:
-    env_file:
-      - path: docker/airflow.env
-        required: true
-    build:
-      <<: *common-build
+    <<: *airflow-common
     container_name: airflow_init
+    environment:
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-admin}
+      _AIRFLOW_WWW_USER_FIRSTNAME: ${_AIRFLOW_WWW_USER_FIRSTNAME:-airflow}
+      _AIRFLOW_WWW_USER_LASTNAME: ${_AIRFLOW_WWW_USER_LASTNAME:-apache}
+      _AIRFLOW_WWW_USER_EMAIL: ${_AIRFLOW_WWW_USER_EMAIL:-airflow@apache.com}
+      _AIRFLOW_WWW_USER_ROLE: ${_AIRFLOW_WWW_USER_ROLE:-Admin}
+      _PIP_ADDITIONAL_REQUIREMENTS: ''
+    user: "0:0"
     entrypoint: /bin/bash
-    # yamllint disable rule:line-length
     command:
       - -c
       - |
@@ -179,56 +171,35 @@ services:
         mkdir -p /sources/config /sources/logs /sources/dags /sources/plugins /sources/include
         chown -R "${AIRFLOW_UID}:leaf" /sources/{config,logs,dags,plugins,include}
         exec /entrypoint airflow version
-    # yamllint enable rule:line-length
-    environment:
-      _AIRFLOW_DB_MIGRATE: 'true'
-      _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
-      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-admin}
-      _AIRFLOW_WWW_USER_FIRSTNAME: ${_AIRFLOW_WWW_USER_FIRSTNAME:-airflow}
-      _AIRFLOW_WWW_USER_LASTNAME: ${_AIRFLOW_WWW_USER_LASTNAME:-apache}
-      _AIRFLOW_WWW_USER_EMAIL: ${_AIRFLOW_WWW_USER_EMAIL:-airflow@apache.com}
-      _AIRFLOW_WWW_USER_ROLE: ${_AIRFLOW_WWW_USER_ROLE:-Admin}
-      _PIP_ADDITIONAL_REQUIREMENTS: ''
-    user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
 
   cli:
-    env_file:
-      - path: docker/airflow.env
-        required: true
-    build:
-      <<: *common-build
+    <<: *airflow-common
     container_name: airflow-cli
-    # Workaround for entrypoint issue. See: https://github.com/apache/airflow/issues/16252
-    command:
-      - bash
-      - -c
-      - airflow
-    user: "${AIRFLOW_UID:-50000}:0"
     profiles:
       - cli
     environment:
       CONNECTION_CHECK_MAX_COUNT: "0"
-    volumes: *common-volumes
+    user: "${AIRFLOW_UID:-50000}:0"
+    command:
+      - bash
+      - -c
+      - airflow
+    volumes: *airflow-volumes
 
   # You can enable flower by adding "--profile flower" option e.g. docker-compose --profile flower up
   # or by explicitly targeted on the command line e.g. docker-compose up flower.
   # See: https://docs.docker.com/compose/profiles/
   flower:
-    env_file:
-      - path: docker/airflow.env
-        required: true
-    build:
-      <<: *common-build
+    <<: *airflow-common
     container_name: airflow_flower
-    command: celery flower
-    user: "${AIRFLOW_UID:-50000}:0"
     profiles:
       - flower
+    user: "${AIRFLOW_UID:-50000}:0"
+    command: celery flower
     ports:
-      - "5555:5555"
+      - 5555:5555
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
       interval: 30s
@@ -236,7 +207,7 @@ services:
       retries: 5
       start_period: 30s
     restart: always
-    volumes: *common-volumes
+    volumes: *airflow-volumes
     depends_on:
       worker:
         condition: service_healthy
