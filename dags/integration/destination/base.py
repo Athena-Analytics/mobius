@@ -1,4 +1,5 @@
 """Module is basement for Destination."""
+
 from abc import ABC, abstractmethod
 
 
@@ -10,6 +11,7 @@ class BaseDestination(ABC):
         copy_write
     ]
     """
+
     @abstractmethod
     def write(self, *args, **kwargs):
         """Implement to define how the connector insert data to the destination"""

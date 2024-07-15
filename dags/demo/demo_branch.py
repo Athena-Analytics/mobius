@@ -1,4 +1,5 @@
 """Dag is a demo designed to test branch."""
+
 import logging
 import textwrap
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
     start_date=pendulum.today(),
     schedule=None,
     catchup=False,
-    tags=["demo"]
+    tags=["demo"],
 )
 def demo_branch():
     """
@@ -22,6 +23,7 @@ def demo_branch():
     - t1
     - t2
     """
+
     @task.branch()
     def branch_task(**kwargs) -> str:
 

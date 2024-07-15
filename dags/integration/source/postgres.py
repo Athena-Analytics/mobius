@@ -1,9 +1,9 @@
 """Module is Source of PostgreSQL."""
+
 import logging
 
-from pandas import DataFrame, read_sql
+import pandas as pd
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-
 from integration.source.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,7 @@ class PGSource(BaseSource):
     """
     Define how to read data from PostgreSQL
     """
+
     def __init__(self, env: str):
 
         logger.info("current env of postgresql is %s", env)
@@ -39,7 +40,7 @@ class PGSource(BaseSource):
             return True
         return False
 
-    def read(self, sql: str, sql_params: dict | None = None) -> DataFrame:
+    def read(self, sql: str, sql_params: dict | None = None) -> pd.DataFrame:
         """
         Fetch data using SQL
         """
@@ -51,6 +52,6 @@ class PGSource(BaseSource):
                 sql_statement = sql
             engine = self._pg_hook.get_sqlalchemy_engine()
             logger.info("begin executing %s", sql_statement)
-            return read_sql(sql_statement, con=engine, params=sql_params)
+            return pd.read_sql(sql_statement, con=engine, params=sql_params)
         except Exception as e:
             raise e

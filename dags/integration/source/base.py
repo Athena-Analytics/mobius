@@ -1,4 +1,5 @@
 """Module is basement for Source."""
+
 from abc import ABC, abstractmethod
 
 
@@ -10,6 +11,7 @@ class BaseSource(ABC):
         exist
     ]
     """
+
     @abstractmethod
     def read(self, *args, **kwargs):
         """Implement to define how the connector read data to the source"""

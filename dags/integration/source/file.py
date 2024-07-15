@@ -1,4 +1,5 @@
 """Module is Source of Local File System."""
+
 import os
 import logging
 
@@ -14,6 +15,7 @@ class FileSource(BaseSource):
     """
     Define how to read data from local system
     """
+
     def __init__(self):
         fs_hook = FSHook()
         self._path = fs_hook.get_path()
@@ -28,7 +30,9 @@ class FileSource(BaseSource):
         logger.info("file_ext is %s", file_ext)
         return file_ext in ext
 
-    def _combine_path_and_file(self, file_name: str, sub_path: str | None = None) -> str:
+    def _combine_path_and_file(
+        self, file_name: str, sub_path: str | None = None
+    ) -> str:
         """
         Combine path and file name
         """
@@ -67,7 +71,9 @@ class FileSource(BaseSource):
             if not self._check_file_ext(file_name, [".csv", ".txt"]):
                 raise TypeError("file ext must be csv or txt")
 
-            return pd.read_csv(self._combine_path_and_file(file_name, sub_path), float_precision="high")
+            return pd.read_csv(
+                self._combine_path_and_file(file_name, sub_path), float_precision="high"
+            )
         except Exception as e:
             raise e
 
@@ -82,6 +88,8 @@ class FileSource(BaseSource):
             if not self._check_file_ext(file_name, [".json"]):
                 raise TypeError("file ext must be json")
 
-            return pd.read_json(self._combine_path_and_file(file_name, sub_path), precise_float=True)
+            return pd.read_json(
+                self._combine_path_and_file(file_name, sub_path), precise_float=True
+            )
         except Exception as e:
             raise e
