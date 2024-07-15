@@ -1,6 +1,6 @@
 #!/bin/bash
-echo "==============start import connections=================="
+echo "==============start importing connections=================="
 airflow connections import connections.json
 
-echo "==============start import variables=================="
+echo "==============start importing variables=================="
 airflow variables import variables.json
