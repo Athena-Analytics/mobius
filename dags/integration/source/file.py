@@ -28,7 +28,7 @@ class FileSource(BaseSource):
         logger.info("file_ext is %s", file_ext)
         return file_ext in ext
 
-    def _combine_path_and_file(self, file_name: str, sub_path: str|None = None) -> str:
+    def _combine_path_and_file(self, file_name: str, sub_path: str | None = None) -> str:
         """
         Combine path and file name
         """
@@ -39,13 +39,13 @@ class FileSource(BaseSource):
         logger.info("sub_path is %s", sub_path)
         return f"{self._path}/{sub_path}/{file_name}"
 
-    def exist(self, file_name: str, sub_path: str|None = None) -> bool:
+    def exist(self, file_name: str, sub_path: str | None = None) -> bool:
         """
         Check if a file exists
         """
         return os.path.exists(self._combine_path_and_file(file_name, sub_path))
 
-    def read(self, file_name: str, sub_path: str|None = None):
+    def read(self, file_name: str, sub_path: str | None = None):
         """
         Fetch data using contextlib
         """
@@ -56,7 +56,7 @@ class FileSource(BaseSource):
         except Exception as e:
             raise e
 
-    def read_csv(self, file_name: str, sub_path: str|None = None) -> pd.DataFrame:
+    def read_csv(self, file_name: str, sub_path: str | None = None) -> pd.DataFrame:
         """
         Fetch data using read_csv
         """
@@ -67,11 +67,11 @@ class FileSource(BaseSource):
             if not self._check_file_ext(file_name, [".csv", ".txt"]):
                 raise TypeError("file ext must be csv or txt")
 
-            return pd.read_csv(self._combine_path_and_file(file_name, sub_path))
+            return pd.read_csv(self._combine_path_and_file(file_name, sub_path), float_precision="high")
         except Exception as e:
             raise e
 
-    def read_json(self, file_name: str, sub_path: str|None = None) -> pd.DataFrame:
+    def read_json(self, file_name: str, sub_path: str | None = None) -> pd.DataFrame:
         """
         Fetch data using read_json
         """
@@ -82,6 +82,6 @@ class FileSource(BaseSource):
             if not self._check_file_ext(file_name, [".json"]):
                 raise TypeError("file ext must be json")
 
-            return pd.read_json(self._combine_path_and_file(file_name, sub_path))
+            return pd.read_json(self._combine_path_and_file(file_name, sub_path), precise_float=True)
         except Exception as e:
             raise e
