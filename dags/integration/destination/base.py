@@ -8,14 +8,14 @@ class BaseDestination(ABC):
     Define some abstract methods that have
     [
         write
-        copy_write
+        exist
     ]
     """
 
     @abstractmethod
     def write(self, *args, **kwargs):
-        """Implement to define how the connector insert data to the destination"""
-
+        """Implement to define how the connector writes data to the destination"""
+    
     @abstractmethod
-    def copy_write(self, *args, **kwargs):
-        """Implement to define how the connector insert data to the destination"""
+    def exist(self, *args, **kwargs):
+        """Implement to define how the connector checks if the objective exists"""

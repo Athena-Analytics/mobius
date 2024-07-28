@@ -3,7 +3,9 @@
 import logging
 
 import pandas as pd
+from airflow.exceptions import AirflowException
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+
 from integration.source.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -36,8 +38,8 @@ class PGSource(BaseSource):
 
         result = self.read(stmt)
 
-        if result.size > 0:
-            return True
+        if result.size == 0:
+            raise ValueError(f"table must be existent, but got {table_name}")
         return False
 
     def read(self, sql: str, sql_params: dict | None = None) -> pd.DataFrame:
@@ -53,5 +55,5 @@ class PGSource(BaseSource):
             engine = self._pg_hook.get_sqlalchemy_engine()
             logger.info("begin executing %s", sql_statement)
             return pd.read_sql(sql_statement, con=engine, params=sql_params)
-        except Exception as e:
-            raise e
+        except AirflowException as e:
+            logger.error(e)

@@ -14,8 +14,8 @@ class BaseSource(ABC):
 
     @abstractmethod
     def read(self, *args, **kwargs):
-        """Implement to define how the connector read data to the source"""
+        """Implement to define how the connector reads data from the source"""
 
     @abstractmethod
     def exist(self, *args, **kwargs):
-        """Implement to define how the connector check if a table exists"""
+        """Implement to define how the connector checks if the objective exists"""
