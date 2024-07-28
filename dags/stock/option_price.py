@@ -91,10 +91,10 @@ def option_price():
             decimal_price = Decimal(str(price))
             return json.dumps(
                 {
-                    "long_price_weekly": str(decimal_price * Decimal("1.1")),
-                    "short_price_weekly": str(decimal_price * Decimal("0.9")),
-                    "long_price_monthly": str(decimal_price * Decimal("1.3")),
-                    "short_price_monthly": str(decimal_price * Decimal("0.7")),
+                    "max_price_weekly": str(decimal_price * Decimal("1.1")),
+                    "min_price_weekly": str(decimal_price * Decimal("0.9")),
+                    "max_price_monthly": str(decimal_price * Decimal("1.3")),
+                    "min_price_monthly": str(decimal_price * Decimal("0.7")),
                 }
             )
 
@@ -140,10 +140,10 @@ def option_price():
 
         trade_date = df["date"].values[0]
         option_price_detail = json.loads(df["option_price_detail"].values[0])
-        long_price_weekly = option_price_detail["long_price_weekly"]
-        short_price_weekly = option_price_detail["short_price_weekly"]
-        long_price_monthly = option_price_detail["long_price_monthly"]
-        short_price_monthly = option_price_detail["short_price_monthly"]
+        max_price_weekly = option_price_detail["max_price_weekly"]
+        min_price_weekly = option_price_detail["min_price_weekly"]
+        max_price_monthly = option_price_detail["max_price_monthly"]
+        min_price_monthly = option_price_detail["min_price_monthly"]
 
         blocks = [
             {
@@ -160,11 +160,11 @@ def option_price():
                     {"type": "mrkdwn", "text": f"*trade_date:* {trade_date}"},
                     {
                         "type": "mrkdwn",
-                        "text": f"*long_price_weekly:* {long_price_weekly}\n*short_price_weekly:* {short_price_weekly}",
+                        "text": f"*max_price_weekly:* {max_price_weekly}\n*min_price_weekly:* {min_price_weekly}",
                     },
                     {
                         "type": "mrkdwn",
-                        "text": f"*long_price_monthly:* {long_price_monthly}\n*short_price_monthly:* {short_price_monthly}",
+                        "text": f"*max_price_monthly:* {max_price_monthly}\n*min_price_monthly:* {min_price_monthly}",
                     },
                 ],
             },
