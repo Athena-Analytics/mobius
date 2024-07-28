@@ -12,7 +12,7 @@ from integration.destination.base import BaseDestination
 logger = logging.getLogger(__name__)
 
 
-class PGDestination(BaseDestination):
+class FileDestination(BaseDestination):
     """
     Define how to write data into PostgreSQL
     """
