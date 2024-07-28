@@ -1,32 +1,31 @@
 """Dag fetches stock data from FMP every Monday."""
+
 import json
 import logging
 
-import pendulum
 import pandas as pd
+import pendulum
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
 from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
 
-from stock.slack_blocks import dag_failure_slack_blocks
-from integration.source.fmp import FMPSource
 from integration.destination.postgres import PGDestination
+from integration.source.fmp import FMPSource
+from stock.slack_blocks import dag_failure_slack_blocks
 
 logger = logging.getLogger(__name__)
 
 dag_failure_slack_webhook_notification = SlackWebhookNotifier(
     slack_webhook_conn_id="slack_webhook_mobius",
     text="The dag {{ dag.dag_id }} failed",
-    blocks=dag_failure_slack_blocks
+    blocks=dag_failure_slack_blocks,
 )
 
 
 @dag(
     "stock_holidays",
-    default_args={
-        "depends_on_past": True
-    },
+    default_args={"depends_on_past": True},
     description="fetch stock holidays from fmp api.",
     start_date=pendulum.today(),
     schedule=None,
@@ -34,13 +33,10 @@ dag_failure_slack_webhook_notification = SlackWebhookNotifier(
     tags=["stock"],
     params={
         "env": Param(
-            "prod", 
-            type="string",
-            title="Select one Value.",
-            enum=["prod", "dev"]
+            "prod", type="string", title="Select one Value.", enum=["prod", "dev"]
         )
     },
-    on_failure_callback=[dag_failure_slack_webhook_notification]
+    on_failure_callback=[dag_failure_slack_webhook_notification],
 )
 def stock_holidays():
     """
@@ -54,6 +50,7 @@ def stock_holidays():
     - update_time
     > [FMP API Documentation](https://site.financialmodelingprep.com/developer/docs)
     """
+
     @task()
     def extract(exchange: str) -> json:
         fmp_source = FMPSource()
@@ -71,10 +68,9 @@ def stock_holidays():
                     continue
                 holiday_name.append(key)
                 holiday_date.append(value)
-            df = pd.DataFrame({
-                "holiday_name": holiday_name,
-                "holiday_date": holiday_date
-            })
+            df = pd.DataFrame(
+                {"holiday_name": holiday_name, "holiday_date": holiday_date}
+            )
             df.loc[:, "holiday_year"] = stock_market_holidays["year"]
             return df.sort_values(by=["holiday_date"])
 
@@ -82,7 +78,9 @@ def stock_holidays():
             if json_data is None:
                 raise TypeError("json_data is None")
 
-            holidays_df = pd.concat((get_holidays_detail(i) for i in json_data["stockMarketHolidays"]))
+            holidays_df = pd.concat(
+                (get_holidays_detail(i) for i in json_data["stockMarketHolidays"])
+            )
 
             holidays_df.loc[:, "exchange"] = json_data["stockExchangeName"]
 

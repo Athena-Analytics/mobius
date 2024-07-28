@@ -1,4 +1,4 @@
-"""Module is Source of Local File System."""
+"""Module is Destination of File."""
 
 import logging
 import os
@@ -7,29 +7,20 @@ import pandas as pd
 from airflow.exceptions import AirflowException
 from airflow.hooks.filesystem import FSHook
 
-from integration.source.base import BaseSource
+from integration.destination.base import BaseDestination
 
 logger = logging.getLogger(__name__)
 
 
-class FileSource(BaseSource):
+class FileDestination(BaseDestination):
     """
-    Define how to read data from local system
+    Define how to write data into PostgreSQL
     """
 
     def __init__(self):
         fs_hook = FSHook()
         self._path = fs_hook.get_path()
         logger.info("current path is %s", self._path)
-
-    @staticmethod
-    def _check_file_ext(file_name: str, ext: list) -> bool:
-        """
-        Check if the extension of file is valid
-        """
-        file_ext = os.path.splitext(file_name)[1]
-        logger.info("file_ext is %s", file_ext)
-        return file_ext in ext
 
     def _combine_path_and_file(
         self, file_name: str, sub_path: str | None = None
@@ -52,47 +43,64 @@ class FileSource(BaseSource):
             raise ValueError(f"file must be existent, but got {file_name}")
         return True
 
-    def read(self, file_name: str, sub_path: str | None = None):
+    def write(
+        self,
+        data: str | list[str],
+        file_name: str,
+        sub_path: str | None = None,
+    ) -> int:
         """
-        Fetch data using contextlib
+        Write data using contextlib
         """
         try:
             assert self.exist(file_name, sub_path)
 
             with open(
-                self._combine_path_and_file(file_name, sub_path), "r", encoding="utf-8"
+                self._combine_path_and_file(file_name, sub_path), "w", encoding="utf-8"
             ) as f:
-                for line in f.readlines():
-                    yield line
+                if isinstance(data, list):
+                    for i in data:
+                        f.write(i)
+                f.write(data)
+            return 1
         except AirflowException as e:
             logger.error(e)
 
-    def read_csv(self, file_name: str, sub_path: str | None = None) -> pd.DataFrame:
+    def write_csv(
+        self,
+        df: pd.DataFrame,
+        file_name: str,
+        mode: str = "x",
+        sub_path: str | None = None,
+    ) -> int:
         """
-        Fetch data using read_csv
+        Write data using to_csv
         """
         try:
-            if not self._check_file_ext(file_name, [".csv", ".txt"]):
-                raise TypeError("file ext must be csv or txt")
-
-            return pd.read_csv(
-                self._combine_path_and_file(file_name, sub_path), float_precision="high"
+            df.to_csv(
+                self._combine_path_and_file(file_name, sub_path), index=False, mode=mode
             )
+            return 1
         except AirflowException as e:
             logger.error(e)
 
-    def read_json(self, file_name: str, sub_path: str | None = None) -> pd.DataFrame:
+    def write_json(
+        self,
+        df: pd.DataFrame,
+        file_name: str,
+        mode: str = "x",
+        sub_path: str | None = None,
+    ) -> int:
         """
-        Fetch data using read_json
+        Write data using to_json
         """
         try:
-            if not self._check_file_ext(file_name, [".json"]):
-                raise TypeError("file ext must be json")
-
-            return pd.read_json(
+            df.to_json(
                 self._combine_path_and_file(file_name, sub_path),
                 orient="records",
-                precise_float=True,
+                index=False,
+                mode=mode,
             )
+            return 1
         except AirflowException as e:
             logger.error(e)

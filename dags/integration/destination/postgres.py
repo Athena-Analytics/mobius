@@ -1,8 +1,9 @@
 """Module is Destination of PostgreSQL."""
+
 import logging
 
+import pandas as pd
 import pendulum
-from pandas import DataFrame
 from airflow.exceptions import AirflowException
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
@@ -15,6 +16,7 @@ class PGDestination(BaseDestination):
     """
     Define how to write data into PostgreSQL
     """
+
     def __init__(self, env: str):
 
         logger.info("current env of postgresql is %s", env)
@@ -27,9 +29,12 @@ class PGDestination(BaseDestination):
             raise ValueError(f"env must be dev or prod, but got {env}")
 
     @staticmethod
-    def _fix_columns(df: DataFrame, cols_mapping: dict) -> DataFrame:
+    def _fix_columns(df: pd.DataFrame, cols_mapping: dict) -> pd.DataFrame:
         if cols_mapping is not None:
-            df.columns = [cols_mapping[col] if col in cols_mapping else col for col in df.columns.tolist()]
+            df.columns = [
+                cols_mapping[col] if col in cols_mapping else col
+                for col in df.columns.tolist()
+            ]
             logger.info("transfer columns successfully")
 
         now = pendulum.now("UTC").to_datetime_string()
@@ -37,11 +42,33 @@ class PGDestination(BaseDestination):
         df["update_time"] = now
         return df
 
-    def write(self, df: DataFrame, table_name: str, table_schema: str = None, cols_mapping: dict = None) -> int:
+    def exist(self, table_name: str, table_schema: str = None) -> bool:
+        """
+        Check if a table exists
+        """
+        if table_schema is None:
+            stmt = f"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = {table_name}"
+        else:
+            stmt += f" AND table_schema = {table_schema}"
+
+        result = self.read(stmt)
+
+        if result.size == 0:
+            raise ValueError(f"table must be existent, but got {table_name}")
+        return True
+
+    def write(
+        self,
+        df: pd.DataFrame,
+        table_name: str,
+        table_schema: str = None,
+        cols_mapping: dict = None,
+    ) -> int:
         """
         Insert data using INSERT command
         """
         from contextlib import closing
+
         from psycopg2.extras import execute_values
 
         try:
@@ -49,7 +76,9 @@ class PGDestination(BaseDestination):
             table_columns = ",".join(df.columns)
             sql_statement = f"INSERT INTO {table_schema}.{table_name} ({table_columns}) VALUES %s RETURNING id;"
 
-            with closing(self._pg_hook.get_conn()) as conn, closing(conn.cursor()) as cur:
+            with closing(self._pg_hook.get_conn()) as conn, closing(
+                conn.cursor()
+            ) as cur:
                 execute_values(cur, sql_statement, df.values.tolist())
                 result = cur.fetchone()[0]
                 conn.commit()
@@ -57,9 +86,14 @@ class PGDestination(BaseDestination):
             return result
         except AirflowException as e:
             logger.error(e)
-            return -1
 
-    def copy_write(self, df: DataFrame, table_name: str, table_schema: str = None, cols_mapping: dict = None) -> int:
+    def copy_write(
+        self,
+        df: pd.DataFrame,
+        table_name: str,
+        table_schema: str = None,
+        cols_mapping: dict = None,
+    ) -> int:
         """
         Insert data using COPY command
         """
@@ -80,4 +114,3 @@ class PGDestination(BaseDestination):
             return 1
         except AirflowException as e:
             logger.error(e)
-            return -1

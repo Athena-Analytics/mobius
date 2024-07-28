@@ -1,4 +1,5 @@
 """Dag is a demo designed to test some params."""
+
 import os
 from pprint import pprint
 
@@ -12,11 +13,7 @@ from airflow.decorators import dag, task
     schedule=None,
     catchup=False,
     tags=["demo"],
-    params={
-        "env": "dev",
-        "conf1": "1",
-        "conf2": "2"
-    }
+    params={"env": "dev", "conf1": "1", "conf2": "2"},
 )
 def demo_param():
     """
@@ -25,6 +22,7 @@ def demo_param():
     - kwargs
     - test_mode
     """
+
     @task()
     def print_kwargs(**kwargs):
         pprint(kwargs)

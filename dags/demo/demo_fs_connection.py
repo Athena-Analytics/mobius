@@ -1,4 +1,5 @@
 """Dag is a demo designed to test fs connection."""
+
 import pendulum
 from airflow.decorators import dag, task
 from airflow.hooks.filesystem import FSHook
@@ -9,12 +10,13 @@ from airflow.hooks.filesystem import FSHook
     start_date=pendulum.today(),
     schedule=None,
     catchup=False,
-    tags=["demo"]
+    tags=["demo"],
 )
 def demo_fs_connection():
     """
     Test fs connection
     """
+
     @task()
     def get_path() -> str:
         fs_hook = FSHook()

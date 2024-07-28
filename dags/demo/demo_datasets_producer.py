@@ -1,4 +1,5 @@
 """Dag is a demo designed to test dataset producer."""
+
 import json
 
 import pendulum
@@ -15,21 +16,24 @@ INFO = Dataset("file://localhost/airflow/include/cocktail_info.txt")
     start_date=pendulum.today(),
     schedule=None,
     catchup=False,
-    tags=["demo"]
+    tags=["demo"],
 )
 def demo_datasets_producer():
     """
     Test datasets producer
     """
+
     @task()
     def get_cocktail(api: str) -> json:
         import requests
+
         r = requests.get(api)
         return r.json()
 
     @task()
     def get_path() -> str:
         from airflow.hooks.filesystem import FSHook
+
         fs_hook = FSHook()
         return fs_hook.get_path()
 

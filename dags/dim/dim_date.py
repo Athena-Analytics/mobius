@@ -1,8 +1,9 @@
 """Dag builds dim_date."""
+
 import logging
 
-import pendulum
 import pandas as pd
+import pendulum
 from airflow.decorators import dag, task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
@@ -14,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 @dag(
     "dim_date",
-    default_args={
-        "depends_on_past": False
-    },
+    default_args={"depends_on_past": False},
     description="build dim_date table",
     start_date=pendulum.today(),
     schedule=None,
@@ -24,30 +23,27 @@ logger = logging.getLogger(__name__)
     tags=["dim"],
     params={
         "env": Param(
-            "prod", 
-            type="string",
-            title="Select one Value",
-            enum=["prod", "dev"]
+            "prod", type="string", title="Select one Value", enum=["prod", "dev"]
         ),
         "sync_mode": Param(
             "Incremental Append",
             type="string",
             title="Select on Value.",
-            enum=["Incremental Append", "Full Refresh Append"]
+            enum=["Incremental Append", "Full Refresh Append"],
         ),
         "start": Param(
             f"{pendulum.today().date()}",
             type="string",
             format="date",
-            title="Start Date Picker"
+            title="Start Date Picker",
         ),
         "end": Param(
             f"{pendulum.today().date()}",
             type="string",
             format="date",
-            title="End Date Picker"
-        )
-    }
+            title="End Date Picker",
+        ),
+    },
 )
 def dim_date():
     """
@@ -78,25 +74,26 @@ def dim_date():
     - create_time
     - update_time
     """
+
     def _get_year_properties(d: pendulum.datetime) -> dict:
         return dict(
             year_num=d.year,
             year_start=d.start_of("year").to_datetime_string(),
-            year_end=d.end_of("year").to_datetime_string()
+            year_end=d.end_of("year").to_datetime_string(),
         )
 
     def _get_quarter_properties(d: pendulum.datetime) -> dict:
         return dict(
             quarter_num=d.quarter,
             quarter_start=d.first_of("quarter").to_datetime_string(),
-            quarter_end=d.last_of("quarter").end_of("day").to_datetime_string()
+            quarter_end=d.last_of("quarter").end_of("day").to_datetime_string(),
         )
 
     def _get_month_properties(d: pendulum.datetime) -> dict:
         return dict(
             month_num=d.month,
             month_start=d.start_of("month").to_datetime_string(),
-            month_end=d.end_of("month").to_datetime_string()
+            month_end=d.end_of("month").to_datetime_string(),
         )
 
     def _get_week_properties(d: pendulum.datetime) -> dict:
@@ -111,18 +108,15 @@ def dim_date():
 
         return dict(
             week_num=d.day_of_week + 1,
-
             natural_week_start=week_start.to_datetime_string(),
             natural_week_end=week_end.to_datetime_string(),
             natural_week_range=week_start.to_date_string() + "~" + week_end.to_date_string(),
-
             foreign_natural_week_start=foreign_natural_week_start.to_datetime_string(),
             foreign_natural_week_end=foreign_natural_week_end.to_datetime_string(),
             foreign_natural_week_range=foreign_natural_week_start.to_date_string() + "~" + foreign_natural_week_end.to_date_string(),
-
             work_week_start=work_week_start.to_datetime_string(),
             work_week_end=work_week_end.to_datetime_string(),
-            work_week_range=work_week_start.to_date_string() + "~" + work_week_end.to_date_string()
+            work_week_range=work_week_start.to_date_string() + "~" + work_week_end.to_date_string(),
         )
 
     def single_date_info(d: pendulum.datetime) -> pd.DataFrame:
@@ -140,13 +134,20 @@ def dim_date():
 
     def frequency_of_month(dt: pendulum.datetime) -> pd.DataFrame:
         import calendar
+
         cal = calendar.Calendar()
         month_days = list(cal.itermonthdays4(dt.year, dt.month))
 
         lst = []
         for i in range(0, 7):
-            some_month_days = [month_days[i + j * 7] for j in range(len(month_days) // 7)]
-            some_week_day = [pendulum.date(k[0], k[1], k[2]).to_date_string() for k in some_month_days if k[1] == dt.month]
+            some_month_days = [
+                month_days[i + j * 7] for j in range(len(month_days) // 7)
+            ]
+            some_week_day = [
+                pendulum.date(k[0], k[1], k[2]).to_date_string()
+                for k in some_month_days
+                if k[1] == dt.month
+            ]
             df = pd.DataFrame(some_week_day, columns=["dt"]).reset_index()
             df["frequency_of_month"] = df["index"] + 1
             lst.append(df)
@@ -163,11 +164,14 @@ def dim_date():
         elif sync_mode == "Full Refresh Append":
             return "historic_task_group.extract_history"
         else:
-            raise AirflowException("sync_mode only support Incremental Append and Full Refresh Append")
+            raise AirflowException(
+                "sync_mode only support Incremental Append and Full Refresh Append"
+            )
 
     @task()
     def extract_history(file: str) -> pd.DataFrame:
         from airflow.hooks.filesystem import FSHook
+
         fs_hook = FSHook()
         path = fs_hook.get_path()
         return pd.read_csv(f"{path}/file/{file}")
@@ -180,12 +184,20 @@ def dim_date():
                 start = pendulum.parse(params["start"])
                 end = pendulum.parse(params["end"])
                 interval = pendulum.interval(start, end)
-                single_date_result = pd.concat([single_date_info(i) for i in interval.range("days")])
-                week_times_result = pd.concat([frequency_of_month(j) for j in interval.range("months")])
-                result = single_date_result.merge(week_times_result[["frequency_of_month", "dt"]], on="dt", how="left")
+                single_date_result = pd.concat(
+                    [single_date_info(i) for i in interval.range("days")]
+                )
+                week_times_result = pd.concat(
+                    [frequency_of_month(j) for j in interval.range("months")]
+                )
+                result = single_date_result.merge(
+                    week_times_result[["frequency_of_month", "dt"]], on="dt", how="left"
+                )
                 return result
             else:
-                raise ValueError(f"both of start and end must be existent, but got {start} and {end}")
+                raise ValueError(
+                    f"both of start and end must be existent, but got {start} and {end}"
+                )
         except Exception as e:
             raise AirflowException(f"unknown error: {e}") from e
 
@@ -229,5 +241,10 @@ dag_object = dim_date()
 
 
 if __name__ == "__main__":
-    conf = {"env": "dev", "sync_mode": "Full Refresh Append", "start": "2999-01-01", "end": "2999-01-01"}
+    conf = {
+        "env": "dev",
+        "sync_mode": "Full Refresh Append",
+        "start": "2999-01-01",
+        "end": "2999-01-01",
+    }
     dag_object.test(run_conf=conf)

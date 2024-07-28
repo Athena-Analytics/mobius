@@ -1,50 +1,46 @@
-
 """Dag get option price base on stock price."""
+
 import json
 import logging
 from decimal import Decimal
 
-import pendulum
 import pandas as pd
+import pendulum
+from airflow.datasets import Dataset
 from airflow.decorators import dag, task
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
 from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
 
-from stock.slack_blocks import dag_failure_slack_blocks
-from utils.common_utils import get_task_date
-from integration.source.fmp import historical_price_full_of_stock
-from integration.source.postgres import PGSource
 from integration.destination.postgres import PGDestination
+from integration.source.postgres import PGSource
+from stock.slack_blocks import dag_failure_slack_blocks
 
 logger = logging.getLogger(__name__)
 
 dag_failure_slack_webhook_notification = SlackWebhookNotifier(
     slack_webhook_conn_id="slack_webhook_mobius",
     text="The dag {{ dag.dag_id }} failed",
-    blocks=dag_failure_slack_blocks
+    blocks=dag_failure_slack_blocks,
 )
+
+FMP_STOCK_PRICE = Dataset("postgres://localhost:5432/postgres/stock/fmp_stock_price")
 
 
 @dag(
     "option_price",
-    default_args={
-        "depends_on_past": True
-    },
+    default_args={"depends_on_past": True, "wait_for_downstream": True},
     description="get option price base on stock price.",
-    start_date=pendulum.datetime(2024, 7, 1),
-    schedule="0 0 * * 1-5",
-    catchup=True,
+    start_date=pendulum.today(),
+    schedule=[FMP_STOCK_PRICE],
+    catchup=False,
     tags=["stock"],
     params={
         "env": Param(
-            "prod", 
-            type="string",
-            title="Select one Value.",
-            enum=["prod", "dev"]
+            "prod", type="string", title="Select one Value.", enum=["prod", "dev"]
         )
     },
-    on_failure_callback=[dag_failure_slack_webhook_notification]
+    on_failure_callback=[dag_failure_slack_webhook_notification],
 )
 def option_price():
     """
@@ -61,56 +57,64 @@ def option_price():
     - update_time
     > [FMP API Documentation](https://site.financialmodelingprep.com/developer/docs)
     """
-    @task.branch()
-    def is_first_trade_date(symbol: str, **kwargs) -> str:
 
-        start_date = kwargs["data_interval_start"]
+    @task()
+    def get_stock_price(symbol: str, **kwargs) -> pd.DataFrame:
         params = kwargs["params"]
         env = params["env"]
+        start_date = kwargs["data_interval_start"]
+        week_start = start_date.start_of("week").to_date_string()
 
         pg_source = PGSource(env)
-        df = pg_source.read(f"SELECT * FROM stock.option_price WHERE symbol = '{symbol}' ORDER BY id DESC LIMIT 1")
+        df = pg_source.read(
+            "/opt/airflow/include/sql/is_first_trade_date.sql",
+            {"symbol": symbol, "week_start": week_start},
+        )
+
         if len(df) == 0:
             raise ValueError(f"{symbol} must have data, but got None")
 
-        latest_trade_date = pendulum.parse(str(df["date"].values[0]))
+        return df
 
-        old_week_start = latest_trade_date.start_of("week")
-        week_start = start_date.start_of("week")
+    @task.branch()
+    def is_first_trade_date(df: pd.DataFrame) -> str | None:
 
-        logger.info("old_week_start: %s, week_start: %s", old_week_start, week_start)
-
-        if old_week_start == week_start:
+        if df["is_exists"].values[0] == 1:
             return None
 
-        return "get_task_date"
+        return "transform"
 
     @task()
-    def extract(symbol: str, from_date: str, to_date: str) -> json:
-        stock_price_daily = historical_price_full_of_stock(symbol, from_date, to_date)
-        return stock_price_daily
-
-    @task()
-    def transform(json_data: json) -> pd.DataFrame:
+    def transform(df: pd.DataFrame) -> pd.DataFrame:
 
         def get_price_detail(price: float) -> str:
             decimal_price = Decimal(str(price))
-            return json.dumps({
-                "long_price_weekly": str(decimal_price * Decimal('1.1')),
-                "short_price_weekly": str(decimal_price * Decimal('0.9')),
-                "long_price_monthly": str(decimal_price * Decimal('1.3')),
-                "short_price_monthly": str(decimal_price * Decimal('0.7')),
-            })
+            return json.dumps(
+                {
+                    "max_price_weekly": str(decimal_price * Decimal("1.1")),
+                    "min_price_weekly": str(decimal_price * Decimal("0.9")),
+                    "max_price_monthly": str(decimal_price * Decimal("1.3")),
+                    "min_price_monthly": str(decimal_price * Decimal("0.7")),
+                }
+            )
 
         try:
-            if json_data is None:
-                raise TypeError("json_data is None")
+            if df is None:
+                raise TypeError("df is None")
 
-            df = pd.DataFrame(json_data["historical"])
-            df.loc[:, "symbol"] = json_data["symbol"]
-            df["price_detail"] = df["open"].apply(get_price_detail)
+            df["option_price_detail"] = df["open"].apply(get_price_detail)
 
-            return df[["symbol", "date", "open", "high", "low", "close", "price_detail"]]
+            return df[
+                [
+                    "symbol",
+                    "date",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "option_price_detail",
+                ]
+            ]
         except Exception as e:
             raise AirflowException(f"unknown error: {e}") from e
 
@@ -132,13 +136,14 @@ def option_price():
 
     @task()
     def send_to_slack(df: pd.DataFrame):
-        from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
+        from airflow.providers.slack.hooks.slack import SlackHook
 
-        price_detail = json.loads(df["price_detail"].values[0])
-        long_price_weekly = price_detail["long_price_weekly"]
-        short_price_weekly = price_detail["short_price_weekly"]
-        long_price_monthly = price_detail["long_price_monthly"]
-        short_price_monthly = price_detail["short_price_monthly"]
+        trade_date = df["date"].values[0]
+        option_price_detail = json.loads(df["option_price_detail"].values[0])
+        max_price_weekly = option_price_detail["max_price_weekly"]
+        min_price_weekly = option_price_detail["min_price_weekly"]
+        max_price_monthly = option_price_detail["max_price_monthly"]
+        min_price_monthly = option_price_detail["min_price_monthly"]
 
         blocks = [
             {
@@ -146,42 +151,40 @@ def option_price():
                 "text": {
                     "type": "plain_text",
                     "text": "Option Price Detail",
-                    "emoji": True
-                }
+                    "emoji": True,
+                },
             },
             {
                 "type": "section",
                 "fields": [
+                    {"type": "mrkdwn", "text": f"*trade_date:* {trade_date}"},
                     {
                         "type": "mrkdwn",
-                        "text": f"*long_price_weekly:* {long_price_weekly}\n*short_price_weekly:* {short_price_weekly}"
+                        "text": f"*max_price_weekly:* {max_price_weekly}\n*min_price_weekly:* {min_price_weekly}",
                     },
                     {
                         "type": "mrkdwn",
-                        "text": f"*long_price_monthly:* {long_price_monthly}\n*short_price_monthly:* {short_price_monthly}"
-                    }
-                ]
-            }
+                        "text": f"*max_price_monthly:* {max_price_monthly}\n*min_price_monthly:* {min_price_monthly}",
+                    },
+                ],
+            },
         ]
-        slack_webhook = SlackWebhookHook(slack_webhook_conn_id="slack_webhook_mobius")
-        slack_webhook.client.send(text="option price detail", blocks=blocks)
+        slack_hook = SlackHook(slack_conn_id="slack_api_mobius")
+        slack_hook.client.chat_postMessage(
+            text="send option price detail",
+            channel="#option-price-alert",
+            blocks=blocks,
+        )
 
+    stock_price_df = get_stock_price("TQQQ")
 
-    stock_symbol = "TQQQ"
-    branch_op = is_first_trade_date(stock_symbol)
+    branch_op = is_first_trade_date(stock_price_df)
 
-    task_date = get_task_date(0, 1)
-    stock_price_daily = extract(stock_symbol, task_date["start_date"], task_date["end_date"])
-    stock_price_daily_df = transform(stock_price_daily)
-    load(stock_price_daily_df, "option_price")
-    send_to_slack(stock_price_daily_df)
+    option_price_df = transform(stock_price_df)
+    load(option_price_df, "option_price")
+    send_to_slack(option_price_df)
 
-    branch_op >> task_date
+    branch_op >> option_price_df
 
 
 dag_object = option_price()
-
-
-if __name__ == "__main__":
-    conf = {"env": "dev"}
-    dag_object.test(run_conf=conf)
