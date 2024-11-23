@@ -1,12 +1,10 @@
 """Module is Destination of File."""
 
 import logging
-import os
 
 import pandas as pd
 from airflow.exceptions import AirflowException
 from airflow.hooks.filesystem import FSHook
-
 from integration.destination.base import BaseDestination
 
 logger = logging.getLogger(__name__)
@@ -35,14 +33,6 @@ class FileDestination(BaseDestination):
         logger.info("sub_path is %s", sub_path)
         return f"{self._path}/{sub_path}/{file_name}"
 
-    def exist(self, file_name: str, sub_path: str | None = None) -> bool:
-        """
-        Check if a file exists
-        """
-        if not os.path.exists(self._combine_path_and_file(file_name, sub_path)):
-            raise ValueError(f"file must be existent, but got {file_name}")
-        return True
-
     def write(
         self,
         data: str | list[str],
@@ -53,8 +43,6 @@ class FileDestination(BaseDestination):
         Write data using contextlib
         """
         try:
-            assert self.exist(file_name, sub_path)
-
             with open(
                 self._combine_path_and_file(file_name, sub_path), "w", encoding="utf-8"
             ) as f:

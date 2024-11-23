@@ -15,7 +15,3 @@ class BaseDestination(ABC):
     @abstractmethod
     def write(self, *args, **kwargs):
         """Implement to define how the connector writes data to the destination"""
-    
-    @abstractmethod
-    def exist(self, *args, **kwargs):
-        """Implement to define how the connector checks if the objective exists"""

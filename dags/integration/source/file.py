@@ -6,7 +6,6 @@ import os
 import pandas as pd
 from airflow.exceptions import AirflowException
 from airflow.hooks.filesystem import FSHook
-
 from integration.source.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -48,9 +47,7 @@ class FileSource(BaseSource):
         """
         Check if a file exists
         """
-        if not os.path.exists(self._combine_path_and_file(file_name, sub_path)):
-            raise ValueError(f"file must be existent, but got {file_name}")
-        return True
+        return os.path.exists(self._combine_path_and_file(file_name, sub_path))
 
     def read(self, file_name: str, sub_path: str | None = None):
         """

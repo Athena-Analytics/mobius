@@ -6,7 +6,6 @@ import pandas as pd
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-
 from integration.destination.base import BaseDestination
 
 logger = logging.getLogger(__name__)
@@ -41,21 +40,6 @@ class PGDestination(BaseDestination):
         df["create_time"] = now
         df["update_time"] = now
         return df
-
-    def exist(self, table_name: str, table_schema: str = None) -> bool:
-        """
-        Check if a table exists
-        """
-        if table_schema is None:
-            stmt = f"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = {table_name}"
-        else:
-            stmt += f" AND table_schema = {table_schema}"
-
-        result = self.read(stmt)
-
-        if result.size == 0:
-            raise ValueError(f"table must be existent, but got {table_name}")
-        return True
 
     def write(
         self,
