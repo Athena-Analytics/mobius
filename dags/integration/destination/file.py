@@ -37,6 +37,7 @@ class FileDestination(BaseDestination):
         self,
         data: str | list[str],
         file_name: str,
+        mode: str = "x",
         sub_path: str | None = None,
     ) -> int:
         """
@@ -44,7 +45,7 @@ class FileDestination(BaseDestination):
         """
         try:
             with open(
-                self._combine_path_and_file(file_name, sub_path), "w", encoding="utf-8"
+                self._combine_path_and_file(file_name, sub_path), mode, encoding="utf-8"
             ) as f:
                 if isinstance(data, list):
                     for i in data:

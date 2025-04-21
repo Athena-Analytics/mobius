@@ -20,9 +20,11 @@ class PGSource(BaseSource):
         logger.info("current env of postgresql is %s", env)
 
         if env == "dev":
-            self._pg_hook = PostgresHook(postgres_conn_id="pg_test")
+            self.conn_id = "pg_test"
+            self._pg_hook = PostgresHook(postgres_conn_id=self.conn_id)
         elif env == "prod":
-            self._pg_hook = PostgresHook(postgres_conn_id="pg_prod")
+            self.conn_id = "pg_prod"
+            self._pg_hook = PostgresHook(postgres_conn_id=self.conn_id)
         else:
             raise ValueError(f"env must be dev or prod, but got {env}")
 

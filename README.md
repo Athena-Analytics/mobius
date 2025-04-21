@@ -39,7 +39,7 @@ docker compose up -d
 ```bash
 docker exec -it airflow_webserver bash
 cd dags
-python -m unittest
+pytest | pytest -k xx.py
 ```
 
 ## Upgrade

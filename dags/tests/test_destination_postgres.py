@@ -1,45 +1,47 @@
 """Unit test is designed to test postgres source."""
 
-import unittest
-
 import pandas as pd
+import pytest
 
 from dags.integration.destination.postgres import PGDestination
 
 
-class TestPGDestination(unittest.TestCase):
+@pytest.fixture()
+def resource():
     """
-    Test source file
+    Setup and Teardown for test
     """
+    pg_destination = PGDestination("dev")
+    pg_destination._execute("/opt/airflow/include/mock/temp_table.sql")
 
-    def setUp(self):
-        self.pg_destination = PGDestination("dev")
+    yield pg_destination
 
-    def test_should_fix_columns(self):
-        """
-        Test method _fix_columns
-        """
-        df = pd.DataFrame({"a": [1], "b": ["test"]})
-        result = self.pg_destination._fix_columns(df, {"a": "aa", "b": "bb"})
-        self.assertEqual(result.columns[0], "aa")
-        self.assertEqual(result.columns[1], "bb")
-
-    def test_should_write(self):
-        """
-        Test method write
-        """
-        df = pd.DataFrame({"a": [1], "b": ["test"]})
-        result = self.pg_destination.write(df, "temp_table", "public")
-        self.assertEqual(result, 1)
-
-    def test_should_copy_write(self):
-        """
-        Test method copy_write
-        """
-        df = pd.DataFrame({"a": [1], "b": ["test"]})
-        result = self.pg_destination.copy_write(df, "temp_table", "public")
-        self.assertEqual(result, 1)
+    pg_destination._execute("DROP TABLE public.temp_table;")
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_should_fix_columns(resource):
+    """
+    Test method _fix_columns
+    """
+    df = pd.DataFrame({"name": ["bob"], "age": [1]})
+    result = resource._fix_columns(df, {"name": "name_1", "age": "age_1"})
+    assert result.columns[0] == "name_1"
+    assert result.columns[1] == "age_1"
+
+
+def test_should_write(resource):
+    """
+    Test method write
+    """
+    df = pd.DataFrame({"name": ["bob"], "age": [1]})
+    result = resource.write(df, "temp_table", "public")
+    assert result == 1
+
+
+def test_should_copy_write(resource):
+    """
+    Test method copy_write
+    """
+    df = pd.DataFrame({"name": ["bob"], "age": [1]})
+    result = resource.copy_write(df, "temp_table", "public")
+    assert result == 1
