@@ -8,6 +8,9 @@ networks:
           ip_range: 172.30.0.0/24
           gateway: 172.30.0.1
 
+volumes:
+  redis_data: {}
+
 x-airflow-common: &airflow-common
   build:
     context: .
@@ -24,6 +27,23 @@ x-airflow-volumes: &airflow-volumes
   - ${AIRFLOW_PROJ_DIR:-.}/include:/opt/airflow/include
 
 services:
+  redis:
+    # Redis is limited to 7.2-bookworm due to licencing change
+    # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
+    image: redis:7.2-bookworm
+    container_name: airflow_redis
+    expose:
+      - 6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
+    restart: always
+    volumes:
+      - redis_data:/data
+
   webserver:
     <<: *airflow-common
     container_name: airflow_webserver
@@ -57,6 +77,8 @@ services:
     restart: always
     volumes: *airflow-volumes
     depends_on:
+      redis:
+        condition: service_healthy
       webserver:
         condition: service_healthy
       init:

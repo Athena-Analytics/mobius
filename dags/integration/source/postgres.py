@@ -5,7 +5,6 @@ import logging
 import pandas as pd
 from airflow.exceptions import AirflowException
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-
 from integration.source.base import BaseSource
 
 logger = logging.getLogger(__name__)
@@ -21,9 +20,11 @@ class PGSource(BaseSource):
         logger.info("current env of postgresql is %s", env)
 
         if env == "dev":
-            self._pg_hook = PostgresHook(postgres_conn_id="pg_test")
+            self.conn_id = "pg_test"
+            self._pg_hook = PostgresHook(postgres_conn_id=self.conn_id)
         elif env == "prod":
-            self._pg_hook = PostgresHook(postgres_conn_id="pg_prod")
+            self.conn_id = "pg_prod"
+            self._pg_hook = PostgresHook(postgres_conn_id=self.conn_id)
         else:
             raise ValueError(f"env must be dev or prod, but got {env}")
 
@@ -31,16 +32,16 @@ class PGSource(BaseSource):
         """
         Check if a table exists
         """
-        if table_schema is None:
-            stmt = f"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = {table_name}"
-        else:
-            stmt += f" AND table_schema = {table_schema}"
+
+        stmt = f"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = '{table_name}'"
+        if table_schema is not None:
+            stmt += f" AND table_schema = '{table_schema}'"
 
         result = self.read(stmt)
 
         if result.size == 0:
-            raise ValueError(f"table must be existent, but got {table_name}")
-        return False
+            return False
+        return True
 
     def read(self, sql: str, sql_params: dict | None = None) -> pd.DataFrame:
         """

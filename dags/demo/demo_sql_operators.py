@@ -20,7 +20,7 @@ def demo_sql_operators():
     SQLExecuteQueryOperator(
         conn_id="pg_test",
         task_id="read_using_sql_file",
-        sql="sql/test.sql",
+        sql="sql/sql_parameter.sql",
         parameters={"symbol": "TQQQ", "week_start": "2024-01-01"},
         return_last=False,
     )

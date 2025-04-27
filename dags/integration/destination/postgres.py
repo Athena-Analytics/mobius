@@ -1,12 +1,12 @@
 """Module is Destination of PostgreSQL."""
 
 import logging
+from contextlib import closing
 
 import pandas as pd
 import pendulum
 from airflow.exceptions import AirflowException
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-
 from integration.destination.base import BaseDestination
 
 logger = logging.getLogger(__name__)
@@ -22,9 +22,11 @@ class PGDestination(BaseDestination):
         logger.info("current env of postgresql is %s", env)
 
         if env == "dev":
-            self._pg_hook = PostgresHook(postgres_conn_id="pg_test")
+            self.conn_id = "pg_test"
+            self._pg_hook = PostgresHook(postgres_conn_id=self.conn_id)
         elif env == "prod":
-            self._pg_hook = PostgresHook(postgres_conn_id="pg_prod")
+            self.conn_id = "pg_prod"
+            self._pg_hook = PostgresHook(postgres_conn_id=self.conn_id)
         else:
             raise ValueError(f"env must be dev or prod, but got {env}")
 
@@ -42,20 +44,31 @@ class PGDestination(BaseDestination):
         df["update_time"] = now
         return df
 
-    def exist(self, table_name: str, table_schema: str = None) -> bool:
+    def _execute(self, s: str, params: dict | None = None) -> int | None:
         """
-        Check if a table exists
+        Execute sql
         """
-        if table_schema is None:
-            stmt = f"SELECT COUNT(1) FROM information_schema.columns WHERE table_name = {table_name}"
-        else:
-            stmt += f" AND table_schema = {table_schema}"
+        import os
 
-        result = self.read(stmt)
+        try:
+            if self.conn_id != "pg_test":
+                raise ValueError(f"conn_id must be pg_test, but got {self.conn_id}")
 
-        if result.size == 0:
-            raise ValueError(f"table must be existent, but got {table_name}")
-        return True
+            if os.path.isfile(s):
+                with open(s, "r", encoding="utf-8") as file:
+                    sql = file.read()
+            else:
+                sql = s
+
+            with closing(self._pg_hook.get_conn()) as conn, closing(
+                conn.cursor()
+            ) as cur:
+                cur.execute(sql, params)
+                conn.commit()
+
+            return 1
+        except AirflowException as e:
+            logger.error(e)
 
     def write(
         self,
@@ -63,12 +76,10 @@ class PGDestination(BaseDestination):
         table_name: str,
         table_schema: str = None,
         cols_mapping: dict = None,
-    ) -> int:
+    ) -> int | None:
         """
         Insert data using INSERT command
         """
-        from contextlib import closing
-
         from psycopg2.extras import execute_values
 
         try:
@@ -93,7 +104,7 @@ class PGDestination(BaseDestination):
         table_name: str,
         table_schema: str = None,
         cols_mapping: dict = None,
-    ) -> int:
+    ) -> int | None:
         """
         Insert data using COPY command
         """

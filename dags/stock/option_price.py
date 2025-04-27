@@ -11,7 +11,6 @@ from airflow.decorators import dag, task
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
 from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
-
 from integration.destination.postgres import PGDestination
 from integration.source.postgres import PGSource
 from stock.slack_blocks import dag_failure_slack_blocks
@@ -63,11 +62,11 @@ def option_price():
         params = kwargs["params"]
         env = params["env"]
         start_date = kwargs["data_interval_start"]
-        week_start = start_date.start_of("week").to_date_string()
+        week_start = start_date.subtract(weeks=1).start_of("week").to_date_string()
 
         pg_source = PGSource(env)
         df = pg_source.read(
-            "/opt/airflow/include/sql/is_first_trade_date.sql",
+            "/opt/airflow/include/sql/is_last_trade_date.sql",
             {"symbol": symbol, "week_start": week_start},
         )
 
@@ -91,6 +90,7 @@ def option_price():
             decimal_price = Decimal(str(price))
             return json.dumps(
                 {
+                    "price": str(decimal_price),
                     "max_price_weekly": str(decimal_price * Decimal("1.1")),
                     "min_price_weekly": str(decimal_price * Decimal("0.9")),
                     "max_price_monthly": str(decimal_price * Decimal("1.3")),
@@ -102,7 +102,7 @@ def option_price():
             if df is None:
                 raise TypeError("df is None")
 
-            df["option_price_detail"] = df["open"].apply(get_price_detail)
+            df["option_price_detail"] = df["close"].apply(get_price_detail)
 
             return df[
                 [
@@ -140,6 +140,7 @@ def option_price():
 
         trade_date = df["date"].values[0]
         option_price_detail = json.loads(df["option_price_detail"].values[0])
+        price = option_price_detail["price"]
         max_price_weekly = option_price_detail["max_price_weekly"]
         min_price_weekly = option_price_detail["min_price_weekly"]
         max_price_monthly = option_price_detail["max_price_monthly"]
@@ -157,7 +158,10 @@ def option_price():
             {
                 "type": "section",
                 "fields": [
-                    {"type": "mrkdwn", "text": f"*trade_date:* {trade_date}"},
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*trade_date:* {trade_date}\n*price:* {price}",
+                    },
                     {
                         "type": "mrkdwn",
                         "text": f"*max_price_weekly:* {max_price_weekly}\n*min_price_weekly:* {min_price_weekly}",
