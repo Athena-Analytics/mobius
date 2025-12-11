@@ -10,7 +10,6 @@ from airflow.decorators import dag, task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.param import Param
 from airflow.providers.slack.notifications.slack_webhook import SlackWebhookNotifier
-
 from integration.destination.postgres import PGDestination
 from integration.source.file import FileSource
 from integration.source.fmp import FMPSource
@@ -60,14 +59,10 @@ def fmp_stock():
     - high
     - low
     - close
-    - adjust_close
     - volume
-    - unadjusted_volume
     - change
     - change_percent
     - vwap
-    - label
-    - change_over_time
     - raw_id
     - create_time
     - update_time
@@ -150,9 +145,8 @@ def fmp_stock():
             if raw_id < 1:
                 raise ValueError(f"raw_id must be bigger than 1, but got {raw_id}")
 
-            df = pd.DataFrame(json_data["historical"]).sort_values(by=["date"])
+            df = pd.DataFrame(json_data).sort_values(by=["date"])
 
-            df.loc[:, "symbol"] = json_data["symbol"]
             df.loc[:, "raw_id"] = raw_id
 
             return df
@@ -187,7 +181,7 @@ def fmp_stock():
     @task_group()
     def current_task_group():
         task_date = get_task_date(0, 1)
-        metadata = extract("TQQQ", task_date["start_date"], task_date["end_date"])
+        metadata = extract("AAPL", task_date["start_date"], task_date["end_date"])
         raw_id = load_raw(metadata, "_raw_fmp_stock_price")
         current_df = transform(metadata, raw_id)
         load(current_df, "fmp_stock_price")

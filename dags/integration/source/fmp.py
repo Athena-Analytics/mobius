@@ -14,18 +14,28 @@ class FMPSource:
     """
 
     def __init__(self):
-        self._base_url = "https://financialmodelingprep.com/api/v3"
+        self._base_url = "https://financialmodelingprep.com/stable"
         self._api_key = Variable.get("FMP_API_KEY")
 
-    def holidays_of_stock(self, exchange: str = "NASDAQ"):
+    def holidays_of_stock(
+        self,
+        exchange: str = "NASDAQ",
+        from_date: str = "2025-01-01",
+        to_date: str = "2025-12-31",
+    ) -> json:
         """
         Fetch stock holidays
         """
         try:
             import requests
 
-            url = f"{self._base_url}/is-the-market-open"
-            params = {"exchange": exchange, "apikey": self._api_key}
+            url = f"{self._base_url}/holidays-by-exchange"
+            params = {
+                "exchange": exchange,
+                "apikey": self._api_key,
+                "from": from_date,
+                "to": to_date,
+            }
 
             logger.info("begin fetching holidays from the %s", url)
 
@@ -57,26 +67,34 @@ class FMPSource:
         try:
             import requests
 
-            url = f"{self._base_url}/historical-price-full/{symbol}"
-            params = {"apikey": self._api_key, "from": from_date, "to": to_date}
+            url = f"{self._base_url}/historical-price-eod/full"
+            params = {
+                "symbol": symbol,
+                "apikey": self._api_key,
+                "from": from_date,
+                "to": to_date,
+            }
 
-            logger.info("begin fetching data from the %s", url)
+            logger.info(
+                "begin fetching data from the %s, and params is %s", url, params
+            )
 
             r = requests.get(url=url, params=params, timeout=60)
-            historical_price_full = r.json()
-
-            logger.info("stop fetching data from the %s", url)
 
             if r.status_code != 200:
                 raise requests.RequestException(
-                    f"request fail, status code is {r.status_code}, response is {r.json()}"
+                    f"request fail, status code is {r.status_code}, response is {r}"
                 )
+
+            historical_price_full = r.json()
+
+            logger.info("stop fetching data from the %s, and params is %s", url, params)
 
             if len(historical_price_full) == 0:
                 raise ValueError(
                     "historical_price_full must have data, please check if date in params is valid"
                 )
 
-            return r.json()
+            return historical_price_full
         except Exception as e:
             raise e

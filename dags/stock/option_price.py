@@ -54,20 +54,19 @@ def option_price():
     - price_detail
     - create_time
     - update_time
-    > [FMP API Documentation](https://site.financialmodelingprep.com/developer/docs)
     """
 
     @task()
     def get_stock_price(symbol: str, **kwargs) -> pd.DataFrame:
         params = kwargs["params"]
         env = params["env"]
-        start_date = kwargs["data_interval_start"]
-        week_start = start_date.subtract(weeks=1).start_of("week").to_date_string()
+        last_week_date = kwargs["data_interval_end"].subtract(weeks=1)
+        last_week_start = last_week_date.start_of("week").to_date_string()
 
         pg_source = PGSource(env)
         df = pg_source.read(
             "/opt/airflow/include/sql/is_last_trade_date.sql",
-            {"symbol": symbol, "week_start": week_start},
+            {"symbol": symbol, "week_start": last_week_start},
         )
 
         if len(df) == 0:
@@ -180,7 +179,7 @@ def option_price():
             blocks=blocks,
         )
 
-    stock_price_df = get_stock_price("TQQQ")
+    stock_price_df = get_stock_price("AAPL")
 
     branch_op = is_first_trade_date(stock_price_df)
 
